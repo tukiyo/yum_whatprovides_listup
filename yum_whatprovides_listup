@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+import sys
+import commands
+import re
+
+def debug():
+    import pdb
+    pdb.set_trace()
+
+def whatprovides(lacked_filename):
+    command = 'yum whatprovides %s | grep $(uname -p) | cut -f 1 -d " "' % (
+              lacked_filename)
+    (ret, out) = commands.getstatusoutput(command)
+    return out
+
+def get_match(line):
+    matched = re.match('\s+([/\w+.-]+)',line)
+    if matched:
+        return matched.group(1)
+    return False
+
+def get_package_name_match(line):
+    matched = re.match('([/\w]+)',line)
+    if matched:
+        if matched.group(1) == "Warning":
+            return False
+        return matched.group(1)
+    return False
+
+def get_arguments():
+    if len(sys.argv) == 1:
+        sys.exit("[usage] sudo %s rpm -ivh *.rpm" % sys.argv[0])
+    x = sys.argv[1:]
+    return " ".join(x)
+
+def main():
+    before_line = before_line2 = None
+    command = get_arguments()
+    for line in commands.getstatusoutput(command)[1].split('\n'):
+        lacked_filename = get_match(line)
+        if lacked_filename:
+            if before_line == lacked_filename:
+                continue
+            package_name = get_package_name_match(whatprovides(lacked_filename))
+            before_line = package_name
+            if package_name:
+                if before_line2 == package_name:
+                    continue
+                before_line2 = package_name
+                print package_name,
+
+if __name__ == "__main__":
+    main()
